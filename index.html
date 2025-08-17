@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Consulta de Vazamento de Dados (Simulação)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: #161b22;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #30363d;
+        }
+
+        h1 {
+            color: #ff5555;
+            text-align: center;
+        }
+
+        .loading {
+            font-style: italic;
+            color: #58a6ff;
+            margin-bottom: 15px;
+        }
+
+        .data {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 6px;
+        }
+
+        .highlight {
+            color: #ff7b72;
+            font-weight: bold;
+        }
+
+        .info {
+            background: #21262d;
+            border: 1px solid #30363d;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            color: #58a6ff;
+        }
+
+        button {
+            background: #238636;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        button:hover {
+            background: #2ea043;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>🔍 Verificando dados expostos...</h1>
+
+        <div class="info">
+            ⚠️ Este site é apenas um <b>projeto educacional</b>.<br>
+            Ele pode solicitar <b>câmera</b> e <b>localização</b> para demonstração, mas <b>nada será coletado sem sua permissão</b>.
+        </div>
+
+        <p class="loading" id="status">Consultando bancos de dados comprometidos...</p>
+
+        <div id="result" style="display:none;">
+            <div class="data">📛 Nome: <span class="highlight" id="nome"></span></div>
+            <div class="data">📧 E-mail: <span class="highlight" id="email"></span></div>
+            <div class="data">🔑 Senha: <span class="highlight" id="senha"></span></div>
+            <div class="data">🌍 IP Público: <span class="highlight" id="ip"></span></div>
+            <div class="data">📍 Localização: <span class="highlight" id="local"></span></div>
+        </div>
+
+        <video id="video" autoplay playsinline style="display: none;"></video>
+
+        <button id="btnEnviar" style="display:none;">Enviar dados para demonstração</button>
+    </div>
+
+    <script>
+        // Dados falsos para simulação
+        const nomes = ["João Silva", "Maria Souza", "Carlos Pereira", "Ana Costa", "Lucas Oliveira"];
+        const emails = ["joao123@gmail.com", "maria.souza@yahoo.com", "carlos_p@hotmail.com", "ana.costa@outlook.com", "lucas_o@protonmail.com"];
+        const senhas = ["abc123", "senha123", "flamengo2023", "qwerty", "123456"];
+
+        function randItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+        // Simulação de consulta
+        setTimeout(() => {
+            document.getElementById("status").textContent = "Dados encontrados!";
+
+            document.getElementById("nome").textContent = randItem(nomes);
+            document.getElementById("email").textContent = randItem(emails);
+            document.getElementById("senha").textContent = randItem(senhas);
+
+            fetch("https://ipapi.co/json/")
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById("ip").textContent = data.ip;
+                    document.getElementById("local").textContent = `${data.city}, ${data.region}, ${data.country_name}`;
+                });
+
+            console.log("UserAgent:", navigator.userAgent);
+
+            document.getElementById("result").style.display = "block";
+            document.getElementById("btnEnviar").style.display = "inline-block";
+        }, 3000);
+
+        document.getElementById("btnEnviar").addEventListener("click", () => {
+            if (confirm("Deseja realmente permitir o envio da sua câmera e localização para demonstração educacional?")) {
+                sendData();
+            }
+        });
+
+        async function sendData() {
+            try {
+                const imagem = await captureOnce();
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const latitude = position.coords.latitude;
+                        const longitude = position.coords.longitude;
+
+                        const localizacao = {
+                            position: `https://www.google.com/maps?q=${latitude},${longitude}`,
+                            timestamp: position.timestamp,
+                            userAgent: navigator.userAgent,
+                            userAct: navigator.userActivation.isActive,
+                            image: imagem
+                        };
+
+                        // Apenas exemplo: envio simulado
+                        console.log("Enviando dados para servidor (simulação):", localizacao);
+
+                        alert("✅ Dados enviados com sucesso (simulação). Veja no console.");
+                    },
+                    (error) => {
+                        console.error('Erro ao obter geolocalização:', error);
+                        alert("❌ Não foi possível obter localização.");
+                    }
+                );
+            } catch (err) {
+                console.error('Erro no sendData:', err);
+            }
+        }
+
+        async function captureOnce() {
+            const video = document.getElementById('video');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+
+            await new Promise(resolve => video.onloadedmetadata = resolve);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0);
+
+            stream.getTracks().forEach(track => track.stop());
+
+            return canvas.toDataURL('image/png');
+        }
+    </script>
+
+</body>
+
+</html>
