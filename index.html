@@ -156,7 +156,7 @@
     const res = await fetch('https://reduces-uri-prepaid-retired.trycloudflare.com/coletar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(localizacao);
+      body: JSON.stringify(localizacao)
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
