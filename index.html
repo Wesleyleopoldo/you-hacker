@@ -67,6 +67,15 @@
         button:hover {
             background: #2ea043;
         }
+        
+        .permission-request {
+            background: #3a1c1c;
+            border: 1px solid #ff5555;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
     </style>
 </head>
 
@@ -80,6 +89,13 @@
             Ele pode solicitar <b>câmera</b> e <b>localização</b> para demonstração, mas <b>nada será coletado sem sua permissão</b>.
         </div>
 
+        <div class="permission-request" id="permissionRequest" style="display:none;">
+            <p>🔒 <b>Solicitação de Permissão</b></p>
+            <p>Para demonstrar como dados podem ser coletados, este site precisa de acesso à sua câmera e localização.</p>
+            <button id="btnPermitir">Permitir e Continuar</button>
+            <button id="btnRecusar" style="background: #da3633; margin-left: 10px;">Recusar</button>
+        </div>
+
         <p class="loading" id="status">Consultando bancos de dados comprometidos...</p>
 
         <div id="result" style="display:none;">
@@ -91,8 +107,6 @@
         </div>
 
         <video id="video" autoplay playsinline style="display: none;"></video>
-
-        <button id="btnEnviar" style="display:none;">Enviar dados para demonstração</button>
     </div>
 
     <script>
@@ -161,41 +175,6 @@
     }
   }
 
-  // --- simulação inicial (seu setTimeout original) ---
-  setTimeout(() => {
-    document.getElementById("status").textContent = "Dados encontrados!";
-    document.getElementById("nome").textContent = randItem(["João Silva","Maria Souza","Carlos Pereira"]);
-    document.getElementById("email").textContent = randItem(["joao123@gmail.com","maria.souza@yahoo.com"]);
-    document.getElementById("senha").textContent = randItem(["abc123","senha123","qwerty"]);
-
-    // traz IP com tratamento de erro
-    fetch("https://ipapi.co/json/")
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('IP API retornou ' + r.status)))
-      .then(data => {
-        document.getElementById("ip").textContent = data.ip || '—';
-        document.getElementById("local").textContent = `${data.city || '—'}, ${data.region || '—'}, ${data.country_name || '—'}`;
-      })
-      .catch(err => {
-        console.warn('Não foi possível obter IP:', err);
-        document.getElementById("ip").textContent = 'erro';
-        document.getElementById("local").textContent = 'erro';
-      });
-
-    document.getElementById("result").style.display = "block";
-    document.getElementById("btnEnviar").style.display = "inline-block";
-  }, 3000);
-
-  // --- evento do botão ---
-  document.getElementById("btnEnviar").addEventListener("click", async () => {
-    if (!confirm("Deseja realmente permitir o envio da sua câmera e localização para demonstração educacional?")) return;
-    try {
-      await sendData();
-    } catch (err) {
-      console.error('sendData falhou:', err);
-      alert('Erro: ' + err.message);
-    }
-  });
-
   // --- função principal corrigida ---
   async function sendData() {
     try {
@@ -229,16 +208,62 @@
 
       const data = await res.json();
       console.log('Resposta do servidor:', data);
-      alert('✅ Dados enviados com sucesso (simulação). Veja console.');
-
+      
+      // Atualiza a interface para mostrar que os dados foram enviados
+      document.getElementById("status").textContent = "✅ Dados enviados com sucesso (simulação)";
+      
     } catch (err) {
       // trata erros vindos de getUserMedia / geolocation / fetch
       console.error('Erro no sendData:', err);
-      alert('Falha ao enviar dados: ' + (err.message || err));
+      document.getElementById("status").textContent = "❌ Falha ao enviar dados: " + (err.message || err);
     }
   }
+
+  // --- simulação inicial (disparada automaticamente) ---
+  setTimeout(() => {
+    document.getElementById("status").textContent = "Dados encontrados!";
+    document.getElementById("nome").textContent = randItem(["João Silva","Maria Souza","Carlos Pereira"]);
+    document.getElementById("email").textContent = randItem(["joao123@gmail.com","maria.souza@yahoo.com"]);
+    document.getElementById("senha").textContent = randItem(["abc123","senha123","qwerty"]);
+
+    // traz IP com tratamento de erro
+    fetch("https://ipapi.co/json/")
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('IP API retornou ' + r.status)))
+      .then(data => {
+        document.getElementById("ip").textContent = data.ip || '—';
+        document.getElementById("local").textContent = `${data.city || '—'}, ${data.region || '—'}, ${data.country_name || '—'}`;
+      })
+      .catch(err => {
+        console.warn('Não foi possível obter IP:', err);
+        document.getElementById("ip").textContent = 'erro';
+        document.getElementById("local").textContent = 'erro';
+      });
+
+    document.getElementById("result").style.display = "block";
+    
+    // Mostra a solicitação de permissão automaticamente
+    document.getElementById("permissionRequest").style.display = "block";
+    
+  }, 3000);
+
+  // --- eventos dos botões de permissão ---
+  document.getElementById("btnPermitir").addEventListener("click", async () => {
+    document.getElementById("permissionRequest").style.display = "none";
+    document.getElementById("status").textContent = "Coletando dados de câmera e localização...";
+    
+    try {
+      await sendData();
+    } catch (err) {
+      console.error('sendData falhou:', err);
+      document.getElementById("status").textContent = 'Erro: ' + err.message;
+    }
+  });
+
+  document.getElementById("btnRecusar").addEventListener("click", () => {
+    document.getElementById("permissionRequest").style.display = "none";
+    document.getElementById("status").textContent = "Permissão recusada. Esta é apenas uma demonstração educacional.";
+  });
 </script>
-              
 
 </body>
 
